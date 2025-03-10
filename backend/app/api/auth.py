@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from backend.app.db.database import SessionLocal
-from backend.app.models.user import User
-from backend.app.shcemas.schemas import UserLogin
+from app.db.database import SessionLocal
+from app.models.user import User
+from app.schemas.schemas import UserLogin
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from jose import jwt

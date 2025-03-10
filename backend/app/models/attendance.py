@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Date
 
-from backend.app.db.database import Base
+from app.db.database import Base
 
 
 # 定义考勤记录模型

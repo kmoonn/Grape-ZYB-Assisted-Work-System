@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
-from backend.app.models.attendance import AttendanceRecordDB
-from backend.app.shcemas.schemas import AttendanceRecord
-from backend.app.db.database import SessionLocal
+from app.models.attendance import AttendanceRecordDB
+from app.schemas.schemas import AttendanceRecord  # 注意这里修正了拼写
+from app.db.database import SessionLocal
+
 
 router = APIRouter(prefix="/api/attendance", tags=["attendance"])
 

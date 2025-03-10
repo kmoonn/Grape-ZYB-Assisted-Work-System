@@ -1,7 +1,7 @@
 from fastapi import APIRouter
-from backend.app.models.student import StudentDB
-from backend.app.shcemas.schemas import Student
-from backend.app.db.database import SessionLocal
+from app.models.student import StudentDB
+from app.schemas.schemas import Student
+from app.db.database import SessionLocal
 
 router = APIRouter(prefix="/api/student", tags=["student"])
 
