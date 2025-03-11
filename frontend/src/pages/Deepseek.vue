@@ -33,6 +33,7 @@
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue'
+import request from '@/utils/request'  // 引入封装的request
 
 const chatContent = ref(null)
 const userInput = ref('')
@@ -44,7 +45,6 @@ const chatMessages = ref([
 const sendMessage = async () => {
   if (!userInput.value.trim()) return
   
-  // 添加用户消息
   chatMessages.value.push({
     role: 'user',
     content: userInput.value
@@ -52,14 +52,22 @@ const sendMessage = async () => {
   
   loading.value = true
   try {
-    // 这里添加与后端的通信逻辑
-    const response = '这是一个模拟的 AI 回复'
+    // 使用封装的request发送消息
+    const response = await request({
+      url: '/chat',
+      method: 'post',
+      data: {
+        message: userInput.value
+      }
+    })
+    
     chatMessages.value.push({
       role: 'ai',
-      content: response
+      content: response.reply || '抱歉，我暂时无法回答这个问题。'
     })
   } catch (error) {
     console.error('Error:', error)
+    ElMessage.error('发送消息失败，请重试')
   } finally {
     loading.value = false
     userInput.value = ''
@@ -67,23 +75,6 @@ const sendMessage = async () => {
   }
 }
 
-const clearChat = () => {
-  chatMessages.value = [{
-    role: 'ai',
-    content: '你好！我是 DeepSeek 助手，有什么可以帮你的吗？'
-  }]
-}
-
-const scrollToBottom = async () => {
-  await nextTick()
-  if (chatContent.value) {
-    chatContent.value.scrollTop = chatContent.value.scrollHeight
-  }
-}
-
-onMounted(() => {
-  scrollToBottom()
-})
 </script>
 
 <style scoped>

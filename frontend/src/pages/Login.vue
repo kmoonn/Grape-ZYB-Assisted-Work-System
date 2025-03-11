@@ -3,7 +3,7 @@
     <div class="login-box">
       <div class="login-header">
         <img src="../assets/logo.png" alt="logo" class="logo">
-        <h2>萄萄作业帮工作辅助工具</h2>
+        <h2>萄萄老师辅助工具</h2>
       </div>
       
       <el-form :model="loginForm" class="login-form">
@@ -45,9 +45,9 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { User, Lock } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import request from '@/utils/request'  // 引入封装的request
+import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const errorMessage = ref('')
@@ -58,9 +58,15 @@ const loginForm = reactive({
 
 const handleLogin = async () => {
   try {
-    const response = await axios.post('http://localhost:8000/login', loginForm)
-    if (response.data.success) {
-      localStorage.setItem('token', response.data.access_token)
+    // 使用封装的request替代直接的axios调用
+    const response = await request({
+      url: '/login',
+      method: 'post',
+      data: loginForm
+    })
+    
+    if (response.success) {
+      localStorage.setItem('token', response.access_token)
       await router.push('/home')
     }
   } catch (error) {

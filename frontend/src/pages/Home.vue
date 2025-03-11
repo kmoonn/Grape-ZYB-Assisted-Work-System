@@ -71,7 +71,7 @@ import {Calendar, List, ChatDotRound, Sunny} from '@element-plus/icons-vue'
 
 const router = useRouter()
 const activeMenu = ref('/home/')
-const username = ref('管理员')
+const username = ref('我的')
 const userAvatar = ref('https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png')
 
 const handleProfile = () => {

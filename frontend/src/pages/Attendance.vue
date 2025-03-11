@@ -5,8 +5,9 @@
         <div class="card-header">
           <h2>缺勤统计</h2>
           <div class="header-actions">
-            <el-button type="success" @click="exportToExcel">导出 Excel</el-button>
             <el-button type="primary" @click="showAddDialog = true">添加记录</el-button>
+            <el-button type="success" @click="exportToExcel">导出Excel</el-button>
+            <el-button type="danger" @click="handleClearData">清空数据</el-button>
           </div>
         </div>
       </template>
@@ -81,174 +82,231 @@
         <el-button type="primary" @click="submitRecord">提交</el-button>
       </template>
     </el-dialog>
+
+    <!-- 添加确认对话框 -->
+    <el-dialog
+      v-model="showClearConfirm"
+      title="确认清空"
+      width="30%"
+    >
+      <span>确定要清空所有考勤记录吗？此操作不可恢复！</span>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="showClearConfirm = false">取消</el-button>
+          <el-button type="danger" @click="clearData">确定清空</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
-import * as XLSX from 'xlsx'; // 导入 xlsx 库
-import { pinyin } from 'pinyin-pro'; // 导入 pinyin-pro 库
+import { ref, onMounted, computed } from 'vue'
+import request from '@/utils/request'
+import * as XLSX from 'xlsx'
+import { pinyin } from 'pinyin-pro'
+import { ElMessage } from 'element-plus'
 
-// 将中文姓名转换为拼音首字母
-const getInitials = (name) => {
-  return pinyin(name, {
-    pattern: 'first', // 只获取首字母
-    toneType: 'none', // 不包含声调
+// 声明响应式数据
+const attendanceList = ref([])
+const studentNames = ref([])
+const showAddDialog = ref(false)
+const filterDate = ref('')
+const showClearConfirm = ref(false)
+
+// 预设的缺勤原因选项
+const reasonOptions = [
+  '请假',
+  '回放',
+  '其他'
+]
+
+// 计算属性：根据日期筛选考勤记录
+const filteredAttendanceList = computed(() => {
+  if (!filterDate.value) {
+    return attendanceList.value
+  }
+  return attendanceList.value.filter(record => record.date === filterDate.value)
+})
+
+// 姓名搜索建议
+const queryName = (queryString, cb) => {
+  if (!queryString) {
+    cb(studentNames.value.map(name => ({ name })))
+    return
+  }
+
+  const results = studentNames.value.filter(name => {
+    // 全名匹配
+    if (name.includes(queryString)) {
+      return true
+    }
+
+    // 获取姓名的每个字的首字母
+    const firstLetters = name.split('').map(char => {
+      return pinyin(char, { pattern: 'first', toneType: 'none' })
+    }).join('')
+
+    // 全拼匹配
+    const fullPinyin = pinyin(name, { toneType: 'none' }).replace(/\s/g, '')
+
+    // 查询字符串转小写
+    const query = queryString.toLowerCase()
+
+    return firstLetters.includes(query) || fullPinyin.toLowerCase().includes(query)
   })
-    .replace(/\s+/g, '') // 去除空格
-    .toLowerCase(); // 转换为小写
-};
 
-// 获取当前日期并格式化为 YYYY-MM-DD
-const getCurrentDate = () => {
-  const date = new Date();
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0'); // 月份从 0 开始，需要 +1
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
+  cb(results.map(name => ({ name })))
+}
 
-// 将日期转换为周几
-const getDayOfWeek = (date) => {
-  const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-  const dayIndex = new Date(date).getDay(); // 获取周几的索引（0-6）
-  return days[dayIndex]; // 返回对应的周几
-};
+// 姓名选择处理
+const handleNameSelect = (item) => {
+  newRecord.value.name = item.name
+}
 
-// 按日期排序
+// 日期排序方法
 const sortDate = (a, b) => {
-  return new Date(a.date) - new Date(b.date);
-};
+  return new Date(a.date) - new Date(b.date)
+}
 
-// 考勤记录列表
-const attendanceList = ref([]);
-// 筛选日期
-const filterDate = ref('');
-// 是否显示添加记录弹窗
-const showAddDialog = ref(false);
-// 新记录表单数据
-const newRecord = ref({
-  date: getCurrentDate(), // 默认使用当前日期
-  name: '',
-  reason: '',
-  status: '未处理',
-});
-
-// 学生姓名列表（从接口获取）
-const studentNames = ref([]);
-
-// 缺勤原因选项（示例数据）
-const reasonOptions = ref(['病假', '事假', '迟到', '早退', '其他']);
+// 导出Excel功能
+const exportToExcel = () => {
+  const data = attendanceList.value.map(({ date, name, reason }) => ({
+    日期: date,
+    姓名: name,
+    原因: reason
+  }))
+  
+  const ws = XLSX.utils.json_to_sheet(data)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, '考勤记录')
+  XLSX.writeFile(wb, '考勤记录.xlsx')
+}
 
 // 获取学生姓名列表
 const fetchStudentNames = async () => {
   try {
-    const response = await axios.get('http://localhost:8000/api/student');
-    studentNames.value = response.data;
+    const response = await request({
+      url: '/api/student',
+      method: 'get'
+    })
+    studentNames.value = Array.isArray(response) 
+      ? response.map(student => student.name)
+      : response
   } catch (error) {
-    console.error('获取学生姓名失败:', error);
+    console.error('获取学生姓名失败:', error)
+    ElMessage.error('获取学生名单失败')
   }
-};
-
-// 姓名自动补全查询
-const queryName = (queryString, cb) => {
-  console.log('用户输入:', queryString);
-  const results = queryString
-    ? studentNames.value.filter((item) => {
-        const initials = getInitials(item.name);
-        return initials.startsWith(queryString.toLowerCase());
-      })
-    : studentNames.value;
-  console.log('匹配结果:', results);
-  cb(results);
-};
-
-const handleNameSelect = (item) => {
-  newRecord.value.name = item.name;
-};
+}
 
 // 获取考勤记录
 const fetchAttendance = async () => {
   try {
-    const response = await axios.get('http://localhost:8000/api/attendance');
-    attendanceList.value = response.data.map((record) => ({
+    const response = await request({
+      url: '/api/attendance',
+      method: 'get'
+    })
+    attendanceList.value = response.map((record) => ({
       ...record,
-      date: record.date.split('T')[0], // 确保日期格式为 YYYY-MM-DD
-    }));
+      date: record.date.split('T')[0]
+    }))
   } catch (error) {
-    console.error('获取考勤记录失败:', error);
+    console.error('获取考勤记录失败:', error)
   }
-};
+}
 
-// 添加考勤记录
+// 获取当前日期的函数
+const getCurrentDate = () => {
+  const date = new Date()
+  return date.toISOString().split('T')[0]  // 返回 'YYYY-MM-DD' 格式
+}
+
+// 声明响应式数据时使用当前日期
+const newRecord = ref({
+  date: getCurrentDate(),  // 默认使用当前日期
+  name: '',
+  reason: '',
+})
+
+// 修改 submitRecord 方法中的重置逻辑
 const submitRecord = async () => {
-  try {
-    const response = await axios.post('http://localhost:8000/api/attendance', {
-      ...newRecord.value,
-      date: newRecord.value.date, // 直接使用已格式化的日期
-    });
-    attendanceList.value.push(response.data); // 将新记录添加到列表
-    showAddDialog.value = false; // 关闭弹窗
-    newRecord.value = { date: '', name: '', reason: '', status: '未处理' }; // 重置表单
-  } catch (error) {
-    console.error('添加考勤记录失败:', error);
+  if (!newRecord.value.date || !newRecord.value.name || !newRecord.value.reason) {
+    ElMessage.warning('请填写完整信息')
+    return
   }
-};
+  
+  try {
+    const response = await request({
+      url: '/api/attendance',
+      method: 'post',
+      data: newRecord.value
+    })
+    attendanceList.value.push(response)
+    showAddDialog.value = false
+    // 重置时使用当前日期
+    newRecord.value = { 
+      date: getCurrentDate(),
+      name: '', 
+      reason: '', 
+    }
+    ElMessage.success('添加成功')
+  } catch (error) {
+    console.error('添加考勤记录失败:', error)
+    ElMessage.error('添加失败')
+  }
+}
 
 // 删除考勤记录
 const deleteRecord = async (row) => {
   try {
-    await axios.delete(`http://localhost:8000/api/attendance/${row.id}`);
-    const index = attendanceList.value.indexOf(row);
-    attendanceList.value.splice(index, 1); // 从列表中移除记录
+    await request({
+      url: `/api/attendance/${row.id}`,
+      method: 'delete'
+    })
+    const index = attendanceList.value.indexOf(row)
+    attendanceList.value.splice(index, 1)
+    ElMessage.success('删除成功')
   } catch (error) {
-    console.error('删除考勤记录失败:', error);
+    console.error('删除考勤记录失败:', error)
+    ElMessage.error('删除失败')
   }
-};
+}
 
-// 导出为 Excel
-const exportToExcel = () => {
-  // 定义表头
-  const headers = ['日期', '学生姓名', '缺勤原因', '处理状态'];
+// 处理清空数据按钮点击
+const handleClearData = () => {
+  showClearConfirm.value = true
+}
 
-  // 将数据转换为 Excel 需要的格式
-  const data = attendanceList.value.map((record) => [
-    record.date,
-    record.name,
-    record.reason,
-    record.status,
-  ]);
+// 清空数据的方法
+const clearData = async () => {
+  try {
+    await request({
+      url: '/api/attendance/clear',
+      method: 'delete',
+      headers: {}
+    })
+    
+    // 清空本地数据
+    attendanceList.value = []
+    
+    // 关闭确认对话框
+    showClearConfirm.value = false
+    
+    // 显示成功消息
+    ElMessage.success('数据已清空')
+  } catch (error) {
+    console.error('清空数据失败:', error)
+    ElMessage.error('清空数据失败')
+  }
+}
 
-  // 创建工作簿
-  const workbook = XLSX.utils.book_new();
-
-  // 创建工作表
-  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
-
-  // 将工作表添加到工作簿
-  XLSX.utils.book_append_sheet(workbook, worksheet, '缺勤记录');
-
-  // 生成文件名
-  const currentDate = getCurrentDate(); // 获取当前日期
-  const dayOfWeek = getDayOfWeek(currentDate); // 获取周几
-  const fileName = `${currentDate}_${dayOfWeek}_缺勤记录.xlsx`; // 拼接文件名
-
-  // 生成 Excel 文件并触发下载
-  XLSX.writeFile(workbook, fileName);
-};
-
-// 根据筛选日期过滤考勤记录
-const filteredAttendanceList = computed(() => {
-  if (!filterDate.value) return attendanceList.value;
-  return attendanceList.value.filter((record) => record.date === filterDate.value);
-});
-
-// 组件挂载时获取考勤记录
-onMounted(() => {
-  fetchAttendance();
-  fetchStudentNames();
-});
+// 组件挂载时获取数据
+onMounted(async () => {
+  await Promise.all([
+    fetchStudentNames(),
+    fetchAttendance()
+  ])
+})
 </script>
 
 <style scoped>
@@ -279,5 +337,12 @@ onMounted(() => {
 
 .filter-container {
   margin-bottom: 20px;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
 }
 </style>

@@ -110,18 +110,18 @@ const saving = ref(false)
 // 用户基本信息
 const userInfo = reactive({
   avatar: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
-  name: '张老师',
-  role: '教师',
-  workDays: 365,
-  taskCount: 1200
+  name: '萄萄老师',
+  role: '小学英语辅导老师',
+  workDays: 0,
+  taskCount: 0
 })
 
 // 表单数据
 const userForm = reactive({
-  username: 'zhanglaoshi',
-  realName: '张老师',
-  phone: '13800138000',
-  email: 'zhang@example.com',
+  username: 'taotao',
+  realName: '萄萄老师',
+  phone: '',
+  email: '',
   oldPassword: '',
   newPassword: '',
   confirmPassword: ''

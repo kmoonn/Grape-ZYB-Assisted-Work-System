@@ -16,7 +16,6 @@ class AttendanceRecord(BaseModel):
     date: date
     name: str
     reason: str
-    status: str
 
 
 class Student(BaseModel):
