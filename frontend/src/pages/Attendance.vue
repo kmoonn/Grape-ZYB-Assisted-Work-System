@@ -65,6 +65,7 @@
       <el-form-item label="原因">
         <el-select
           v-model="newRecord.reason"
+          allow-create
           filterable
           placeholder="请选择或输入缺勤原因"
         >
