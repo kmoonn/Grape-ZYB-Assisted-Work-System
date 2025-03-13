@@ -116,9 +116,9 @@ const showClearConfirm = ref(false)
 
 // 预设的缺勤原因选项
 const reasonOptions = [
-  '请假',
+  '失联',
   '回放',
-  '其他'
+  '请假',
 ]
 
 // 计算属性：根据日期筛选考勤记录
